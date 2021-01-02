@@ -1,3 +1,4 @@
 node_modules/
 .idea/
 app/config.js
+app/birthdaybot-*.json

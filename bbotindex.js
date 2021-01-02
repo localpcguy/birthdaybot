@@ -9,10 +9,11 @@ const port = config.PORT || 3020;
 // body parser middleware
 app.use(express.json());
 
-// test route
+// routes
 app.get('/', function (req, res) { res.status(200).send('Hello world!'); });
 app.post('/hello', helloBot);
-app.post('/birthdays', birthdayBot.handlePost);
+app.get('/birthdays', birthdayBot.getBirthdays);
+app.post('/postBirthday', birthdayBot.handlePost);
 
 // error handler
 app.use(function (err, req, res, next) {
