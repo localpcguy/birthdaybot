@@ -10,19 +10,18 @@ const port = config.PORT || 3020;
 app.use(express.json());
 
 // routes
-app.get('/', function (req, res) { res.status(200).send('Hello world!'); });
+app.get('/', (req, res) => res.status(200).send('Hello world! -BBot'));
+app.get('/birthdays', birthdayBot.birthdays);
 app.post('/hello', helloBot);
-app.get('/birthdays', birthdayBot.getBirthdays);
-app.post('/postBirthday', birthdayBot.handlePost);
+app.post('/birthdays', birthdayBot.birthdays);
+app.post('/postBirthday', birthdayBot.birthdayMessage);
 
 // error handler
-app.use(function (err, req, res, next) {
+app.use((err, req, res, next) => {
 	console.error(err.stack);
 	res.status(400).send(err.message);
 });
 
-app.listen(port, function () {
-	console.log('Slack bot listening on port ' + port);
-});
+app.listen(port, () => console.log('Slack bot listening on port ' + port));
 
 module.exports = app;

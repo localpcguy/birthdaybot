@@ -9,11 +9,11 @@ const _uri = config.API_URI + _path;
 const _isMock = false;
 
 module.exports = {
-    handlePost,
-    getBirthdays
+    birthdayMessage,
+    birthdays
 };
 
-function handlePost(req, res, next) {
+function birthdayMessage(req, res, next) {
     const botPayload = {
         username: 'birthdaybot',
         channel: req.body.channel_id
@@ -32,21 +32,18 @@ function handlePost(req, res, next) {
     console.log(req.body.user_name, ' - ', req.body.text);
 
     // send birthday info
-    send(botPayload, sendError);
+    send(botPayload, getSendError(res, next));
 }
 
-async function getBirthdays() {
+async function birthdays(req, res, next) {
+    const sendError = getSendError(res, next);
     const SCOPES = [
         // Other options at https://developers.google.com/identity/protocols/oauth2/scopes#docsv1
         'https://www.googleapis.com/auth/spreadsheets.readonly'
     ];
-    // const credential = GoogleCredential.FromFile(config.BBOT_AUTH_LOCATION);
-
     const client = auth.fromJSON(bBotConfig);
-    client.scopes = SCOPES
-
+    client.scopes = SCOPES;
     const sheets = google.sheets({version: 'v4', auth: client});
-
     const birthdays = await sheets.spreadsheets.values.get({
         spreadsheetId: config.BIRTHDAY_SHEETS_ID,
         range: 'Sheet1!A2:D'
@@ -58,7 +55,25 @@ async function getBirthdays() {
         sendError(null, 500, {'error': 'unknown'});
     });
 
-    console.log(birthdays, birthdays && birthdays.data.values.forEach(row => console.log(row.toString())));
+
+    if (birthdays && birthdays.status === 200 && birthdays.data) {
+        if (req.method === 'GET') {
+            console.log(birthdays, birthdays.data.values.forEach(row => console.log(row.toString())));
+
+            res.status(200).send('<pre>' + birthdays.data.values.reduce((text, row) => {
+                return text += row.toString() + '\n';
+            }, '') + '</pre>');
+        }
+        if (req.method === 'POST') {
+            // do Slackbot stuff here
+            // should look for parameter for duration
+            // command: /birthdays day|week|month|year - (default day) - show birthdays for the given duration
+            res.status(200).send({"error": "not implemented"});
+        }
+    } else {
+        res.status(500).send('Unable to get birthday data');
+        sendError(null, 500, {'error': ''})
+    }
 }
 
 function send(payload, callback) {
@@ -75,14 +90,16 @@ function send(payload, callback) {
     });
 }
 
-function sendError(error, status, body) {
-    console.log(error, status, body);
-    // if (error) {
-    //     return next(error);
-    // } else if (status !== 200) {
-    //     // inform user that our Incoming WebHook failed
-    //     return next(new Error('Incoming WebHook: ' + status + ' ' + body));
-    // } else {
-    //     return res.status(200).end();
-    // }
+function getSendError(res, next) {
+    return (error, status, body) => {
+        console.log(error, status, body);
+        if (error) {
+            return next(error);
+        } else if (status !== 200) {
+            // inform user that our Incoming WebHook failed
+            return next(new Error('Incoming WebHook: ' + status + ' ' + body));
+        } else {
+            return res.status(200).end();
+        }
+};
 }
