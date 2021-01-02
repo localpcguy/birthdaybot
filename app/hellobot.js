@@ -1,10 +1,8 @@
-'use strict';
-
-var config = require('./config');
+const config = require('./config');
 
 module.exports = function (req, res, next) {
-	var userName = req.body.user_name;
-	var botPayload = {
+	const userName = req.body.user_name;
+	const botPayload = {
 		text : 'Hello, ' + userName + '!'
 	};
 

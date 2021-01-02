@@ -13,7 +13,7 @@
   "dependencies": {
     "body-parser": "^1.x.x",
     "express": "^4.x.x",
-    "request": "^2.x.x"
+    "node-fetch": "^2.6.1"
   },
   "devDependencies": {
     "chai": "^2.2.0",

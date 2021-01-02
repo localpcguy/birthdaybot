@@ -1,21 +1,18 @@
-'use strict';
+const express = require('express');
+const config = require('./app/config');
+const helloBot = require('./app/hellobot');
+const birthdayBot = require('./app/birthdaybot');
 
-var express = require('express');
-var bodyParser = require('body-parser');
-var config = require('./app/config');
-var hellobot = require('./app/hellobot');
-// var birthdaybot = require('./app/birthdaybot');
-
-var app = express();
-var port = config.PORT || 3020;
+const app = express();
+const port = config.PORT || 3020;
 
 // body parser middleware
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 
 // test route
 app.get('/', function (req, res) { res.status(200).send('Hello world!'); });
-app.post('/hello', hellobot);
-// app.post('/birthday', birthdaybot.handlePost);
+app.post('/hello', helloBot);
+app.post('/birthdays', birthdayBot.handlePost);
 
 // error handler
 app.use(function (err, req, res, next) {
