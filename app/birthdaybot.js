@@ -1,8 +1,9 @@
 const fetch = require('node-fetch');
 const config = require('./config');
 const bBotConfig = require('./birthdaybot-300521-acd941dad4f7.json');
-const {JWT, auth} = require('google-auth-library');
-const {google} = require('googleapis');
+const { auth } = require('google-auth-library');
+const { google } = require('googleapis');
+const { Birthday } = require('./birthday');
 
 const _path = config.INCOMING_WEBHOOK_PATH;
 const _uri = config.API_URI + _path;
@@ -35,6 +36,14 @@ function birthdayMessage(req, res, next) {
     send(botPayload, getSendError(res, next));
 }
 
+const TIMEFRAMES = {
+    'day': 'DAY',
+    'today': 'DAY',
+    'week': 'WEEK',
+    'month': 'MONTH',
+    'debug': 'DEBUG'
+}
+
 async function birthdays(req, res, next) {
     const sendError = getSendError(res, next);
     const SCOPES = [
@@ -44,9 +53,9 @@ async function birthdays(req, res, next) {
     const client = auth.fromJSON(bBotConfig);
     client.scopes = SCOPES;
     const sheets = google.sheets({version: 'v4', auth: client});
-    const birthdays = await sheets.spreadsheets.values.get({
+    const birthdayData = await sheets.spreadsheets.values.get({
         spreadsheetId: config.BIRTHDAY_SHEETS_ID,
-        range: 'Sheet1!A2:D'
+        range: 'Sheet1!A2:E'
     }).catch(error => {
         if (error) {
             return sendError(error);
@@ -56,19 +65,49 @@ async function birthdays(req, res, next) {
     });
 
 
-    if (birthdays && birthdays.status === 200 && birthdays.data) {
+    if (birthdayData && birthdayData.status === 200 && birthdayData.data) {
+        const birthdays = birthdayData.data.values.map((birthdayInfo) => new Birthday().deserialize(birthdayInfo)).filter((birthdayInfo) => birthdayInfo.isActive);
         if (req.method === 'GET') {
-            console.log(birthdays, birthdays.data.values.forEach(row => console.log(row.toString())));
-
             res.status(200).send('<pre>' + birthdays.data.values.reduce((text, row) => {
                 return text += row.toString() + '\n';
             }, '') + '</pre>');
         }
         if (req.method === 'POST') {
-            // do Slackbot stuff here
-            // should look for parameter for duration
-            // command: /birthdays day|week|month|year - (default day) - show birthdays for the given duration
-            res.status(200).send({"error": "not implemented"});
+            const reqtext = req.body.text;
+            const timeframe = reqtext == null || reqtext === '' ? 'DAY' : TIMEFRAMES[reqtext];
+            const botPayload = {
+                username: 'birthdaybot',
+                channel: req.body.channel_id
+            };
+
+            console.log('birthdays, body: ', req.body)
+
+            console.log(reqtext, timeframe/*, birthdays*/);
+            switch (timeframe) {
+                case 'DAY':
+                    console.log(birthdays.filter(bd => bd.isToday()));
+                    botPayload.text = `Birthdays today: ${birthdays.filter(bd => bd.isToday()).map(bd => bd.name).join(', ')}`;
+                    break;
+                case 'WEEK':
+                    console.log(birthdays.filter(bd => bd.isNextWeek()));
+                    botPayload.text = `Birthdays in the next week: ${birthdays.filter(bd => bd.isNextWeek()).map(bd => bd.name).join(', ')}`;
+                    break;
+                case 'MONTH':
+                    console.log(birthdays.filter(bd => bd.isNextMonth()));
+                    botPayload.text = `Birthdays in the next month: ${birthdays.filter(bd => bd.isNextMonth()).map(bd => bd.name).join(', ')}`;
+                    break;
+                case 'DEBUG':
+                    console.log(birthdays.data.values);
+                    res.status(200).send(birthdays.data.values);
+                    return;
+                default:
+                    console.log('no valid time frame');
+                    return sendError(null, 500, {'error': 'no valid time frame'});
+                    break;
+            }
+            res.status(200).send({"message": "birthdays post"});
+            // send birthday info
+            send(botPayload, getSendError(res, next));
         }
     } else {
         res.status(500).send('Unable to get birthday data');
